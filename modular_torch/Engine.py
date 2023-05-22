@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
+
 from collections import defaultdict
 from tqdm import tqdm 
 
@@ -170,7 +171,8 @@ def fit(model: torch.nn.Module,
                 sample_batch, _ = next(iter(train_loader))
                 writer.add_graph(model = model, input_to_model = sample_batch.to(device))
 
-    writer.close()
+    if writer is not None:
+        writer.close()
             
 
     return history_train, history_test

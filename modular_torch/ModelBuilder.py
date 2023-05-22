@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 
+from torchvision.models import vit_b_16, ViT_B_16_Weights
+from torchvision.models import efficientnet_b2, EfficientNet_B2_Weights
+
 class TinyVgg(nn.Module):
     """Creates TinyVGG model. 
             see architecture at: https://poloclub.github.io/cnn-explainer/#article-relu
@@ -40,3 +43,43 @@ class TinyVgg(nn.Module):
         x = self.conv_stack_2(x)
         x = self.linear_stack(x)
         return x
+    
+
+
+def get_vit_pretrained_model_with_custom_head(num_classes: int = 3):
+
+    weights = ViT_B_16_Weights.DEFAULT
+    transforms = weights.transforms()
+    model = vit_b_16(weights = weights)
+
+
+    ## Freeze weights
+    for param in model.parameters():
+        param.requires_grad = False
+    
+    ## Custom Head
+    model.heads = nn.Sequential(
+        nn.Linear(in_features = 768, out_features = num_classes)
+    )
+
+    return model, transforms
+
+
+def get_custom_effnet_b2(num_classes: int = 3):
+    
+    weights = EfficientNet_B2_Weights.DEFAULT
+    eff_net_transforms = weights.transforms()
+
+    eff_net_model = efficientnet_b2(weights = weights)
+
+    ## freezing weights
+    for params in eff_net_model.features.parameters():
+        params.requires_grad = False
+
+    ## adding custom head
+    eff_net_model.classifier = nn.Sequential(
+        nn.Dropout(p = 0.3, inplace = True),
+        nn.Linear(in_features = 1408, out_features = num_classes)
+    )
+
+    return eff_net_model, eff_net_transforms
