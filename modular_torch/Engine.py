@@ -5,9 +5,64 @@ import numpy as np
 from collections import defaultdict
 from tqdm import tqdm 
 
-from ModularTorch.Utils import create_writer
+from modular_torch.Utils import create_writer
 from torch.utils.tensorboard import SummaryWriter
 
+# define a trainer class
+# regression / classification
+# metrics as function (acc or whatever)
+
+class TorchTrainer:
+    def __init__(self, problem_type = "classification", device = "cpu"):
+        self.problem = problem_type
+        self.device = device
+    
+    def train_step(self, model, loss_fn, optimizer, data_loader, device, metrics = []):
+        model.train()
+        model = model.to(device)
+        metric_dict = defaultdict(list)
+        step_dict = defaultdict(lambda: 0.0)
+        
+        running_loss = 0.0
+        for x, y in data_loader:
+            x, y = x.to(device), y.to(device)
+            
+            # predict
+            y_logits = model(x)
+
+            loss = loss_fn(y_logits, y)
+            running_loss += loss.item()
+            
+            if metrics is not None:
+                
+                # default loss impl
+                
+                
+                for metric_func in metrics:
+                    assert hasattr(metric_func, "__call__"), f"function in metric dict has no __call__ attr. please pass a function ref."
+                    metric_output = metric_func(y_logits, y)
+                    step_dict[metric_func._get_name()] += metric_output
+                        
+            # update the gradients
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        running_loss = running_loss / len(data_loader)
+        
+
+        return running_loss
+    
+    def test_step(self):
+        pass
+    
+    def fit(self):
+        pass
+        
+    
+    
+    
+# ===================== break point =====================
 
 def acc_fn(y_probs: torch.Tensor, y_true:torch.Tensor) -> float:
     """Calculates accuracy from y_pred and y_true
