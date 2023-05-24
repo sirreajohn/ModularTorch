@@ -13,54 +13,200 @@ from torch.utils.tensorboard import SummaryWriter
 # metrics as function (acc or whatever)
 
 class TorchTrainer:
-    def __init__(self, problem_type = "classification", device = "cpu"):
+    def __init__(self, 
+                 problem_type = "classification", 
+                 device = "cpu"):
+        """_summary_
+
+        Args:
+            problem_type (str, optional): _description_. Defaults to "classification".
+            device (str, optional): _description_. Defaults to "cpu".
+        """
         self.problem = problem_type
         self.device = device
     
-    def train_step(self, model, loss_fn, optimizer, data_loader, device, metrics = []):
-        model.train()
+    def batch_step(self, 
+                   model, 
+                   loss_fn, 
+                   optimizer, 
+                   data_loader,
+                   isTrain, 
+                   device, 
+                   metrics = None):
+        """_summary_
+
+        Args:
+            model (_type_): _description_
+            loss_fn (_type_): _description_
+            optimizer (_type_): _description_
+            data_loader (_type_): _description_
+            isTrain (bool): _description_
+            device (_type_): _description_
+            metrics (_type_, optional): _description_. Defaults to None.
+
+        Returns:
+            _type_: _description_
+        """
+        
+        model.train() if isTrain else model.eval() 
         model = model.to(device)
-        metric_dict = defaultdict(list)
         step_dict = defaultdict(lambda: 0.0)
         
-        running_loss = 0.0
-        for x, y in data_loader:
-            x, y = x.to(device), y.to(device)
-            
-            # predict
-            y_logits = model(x)
-
-            loss = loss_fn(y_logits, y)
-            running_loss += loss.item()
-            
-            if metrics is not None:
+        with torch.inference_mode(mode = ~isTrain):
+            for x, y in data_loader:
+                x, y = x.to(device), y.to(device)
+                
+                # predict
+                y_logits = model(x)
+                loss = loss_fn(y_logits, y)
                 
                 # default loss impl
+                step_dict["loss"] += loss.item()
                 
-                
-                for metric_func in metrics:
-                    assert hasattr(metric_func, "__call__"), f"function in metric dict has no __call__ attr. please pass a function ref."
-                    metric_output = metric_func(y_logits, y)
-                    step_dict[metric_func._get_name()] += metric_output
-                        
-            # update the gradients
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+                # additional metrics to be computed.
+                if metrics is not None:
+                    step_dict = self.calculate_metrics(metrics, step_dict, y_logits, y)             
 
-        running_loss = running_loss / len(data_loader)
+                # update the gradients if this is train_batch
+                if isTrain:
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+            
+        # averaging for this batch.
+        step_dict = self.average_metrics(step_dict, len(data_loader))
         
-
-        return running_loss
+        return step_dict
     
-    def test_step(self):
+    @staticmethod
+    def calculate_metrics(metrics, step_dict, y_logits, y_true):
+        """_summary_
+
+        Args:
+            metrics (_type_): _description_
+            step_dict (_type_): _description_
+            y_logits (_type_): _description_
+            y_true (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        for metric_func in metrics:
+            assert hasattr(metric_func, "__call__"), f"function in metric dict has no __call__ attr. please pass a function ref."
+            metric_output = metric_func(y_logits, y_true)
+            step_dict[metric_func._get_name()] += metric_output
+            
+        return step_dict
+    
+    @staticmethod
+    def average_metrics(step_dict, data_length):
+        """_summary_
+
+        Args:
+            step_dict (_type_): _description_
+            data_length (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        for metric_name in step_dict.keys():
+            step_dict[metric_name] /= data_length
+            
+        return step_dict
+    
+    @staticmethod
+    def append_histories(history_dict, step_dict):
+        """_summary_
+
+        Args:
+            history_dict (_type_): _description_
+            step_dict (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        for metrics, values in step_dict.items():
+            history_dict[metrics].append(values)
+            
+        return history_dict
+    
+    @staticmethod
+    def generate_epoch_report(epoch, num_epochs, step_dict_train, step_dict_test):
         pass
     
-    def fit(self):
-        pass
+    def fit(self, 
+            model, 
+            loss_fn, 
+            optimizer,
+            num_epochs, 
+            train_loader,
+            validation_loader,
+            device, 
+            metrics = None):
+        
+        if isinstance(writer, str) and writer.lower() == "create":
+        
+            random_num = np.random.randint(0,999)
+            writer = create_writer(experiment_name = f"Guilty_Crown_{random_num}",
+                                model_name = f"{model.__class__.__name__}_{random_num}", 
+                                include_time = True)
+            
+
+        history_train = defaultdict(list)
+        history_test = defaultdict(list)
+
+        for epoch in tqdm(range(num_epochs)):
+            step_dict_train = self.batch_step(model = model, 
+                                              loss_fn = loss_fn, 
+                                              optimizer = optimizer, 
+                                              data_loader = train_loader, 
+                                              isTrain = True, 
+                                              device = device, 
+                                              metrics = metrics)
+            
+            history_train = self.append_histories(history_train, step_dict_train)
+            
+            
+            step_dict_test = self.batch_step(model = model, 
+                                              loss_fn = loss_fn, 
+                                              optimizer = optimizer, 
+                                              data_loader = validation_loader, 
+                                              isTrain = False, 
+                                              device = device, 
+                                              metrics = metrics)
+            
+            history_test = self.append_histories(history_test, step_dict_test)
+            
+            # train_loop
+            # append metrics train 
+            # test_loop 
+            # append metrics test
+            # print
+            # log to tensorboard
+
+            print(f"Epoch: {epoch} / {epochs}, train_loss: {running_loss_train:.4f} | train_acc: {running_acc_train:.4f} | test_loss: {running_loss_test:.4f} | test_acc: {running_acc_test:.4f}")
+            
+            if writer is not None and type(writer) != str:
+                
+                writer.add_scalars(main_tag = "loss_values", tag_scalar_dict = {"loss_train": running_loss_train, "loss_test": running_loss_test}, global_step = epoch)
+                writer.add_scalars(main_tag = "accuracy", tag_scalar_dict = {"accuracy_train": running_acc_train, "accuracy_test": running_acc_test}, global_step = epoch)
+                
+                if add_graph:
+                    sample_batch, _ = next(iter(train_loader))
+                    writer.add_graph(model = model, input_to_model = sample_batch.to(device))
+
+        if writer is not None:
+            writer.close()
+                
+
+        return history_train, history_test
         
     
     
+    
+
+
+
     
 # ===================== break point =====================
 
