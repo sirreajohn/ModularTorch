@@ -4,7 +4,7 @@ Helper functions and scripts for pytorch
 
 ## Todo:
 - [X] turn into classes
-- [ ] add docstrings
+- [X] add docstrings
 - [ ] make into a pypi package (ver 0.1a)
 - [ ] add support for custom predict function
 - [ ] add metrics parser to existing metrics
