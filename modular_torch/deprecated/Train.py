@@ -8,7 +8,7 @@ import torchvision.transforms as trans
 
 from DataSetup import get_data_loaders, get_data
 from ModelBuilder import TinyVgg
-from Engine import fit
+from modular_torch.deprecated.Engine import fit
 from Utils import save_model_weights
 
 

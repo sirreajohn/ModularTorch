@@ -37,6 +37,18 @@ def create_writer(experiment_name: str,
                   include_time: bool = False, 
                   comments: str = None, 
                   path: str = "runs") -> SummaryWriter:
+    """_summary_
+
+    Args:
+        experiment_name (str): name of experiment / randomly generated.
+        model_name (str): name of the model
+        include_time (bool, optional): include time in run name. Defaults to False.
+        comments (str, optional): comments to add to run (like configs or hyper params). Defaults to None.
+        path (str, optional): path to save run to. Defaults to "runs".
+
+    Returns:
+        SummaryWriter: writer object to log metrics to a file.
+    """
 
     path = path + "/[d]" + datetime.datetime.now().strftime("%Y-%m-%d")
 
@@ -53,6 +65,12 @@ def create_writer(experiment_name: str,
 
 def plot_loss_acc_curves_from_history_dicts(train_history: dict, 
                                             test_history: dict) -> None:
+    """plots loss and accuracy curves, given history dicts.
+
+    Args:
+        train_history (dict): train history dictionary
+        test_history (dict): test history dictionary
+    """
     
     range_epochs = [*range(train_history["loss"].__len__())]
 
