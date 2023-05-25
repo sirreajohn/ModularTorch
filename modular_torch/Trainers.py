@@ -230,7 +230,6 @@ class TorchTrainer:
             if not debug_mode:
                 for metrics_name in step_dict_train.keys():
                     test_val = step_dict_test[metrics_name] if metrics_name in step_dict_test.keys() else -99  # check this.
-                    # writer.add_scalars(main_tag = "loss_values", tag_scalar_dict = {"loss_train": running_loss_train, "loss_test": running_loss_test}, global_step = epoch)
                     writer.add_scalars(main_tag = metrics_name, 
                                        tag_scalar_dict = {
                                            f"{metrics_name}_train": step_dict_train[metrics_name],
